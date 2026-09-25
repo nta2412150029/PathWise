@@ -1,0 +1,59 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+*.so
+*.dylib
+
+# === Virtual environments ===
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# === pytest / coverage ===
+.pytest_cache/
+.cache/
+htmlcov/
+.coverage
+coverage.xml
+*.coveragerc
+
+# === Jupyter ===
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# === IDEs ===
+.vscode/
+.idea/
+*.suo
+*.user
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# === Windows ===
+*.lnk
+
+# === Logs ===
+*.log
+logs/
+
+# === Flask / runtime ===
+instance/
+flask_session/

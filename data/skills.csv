@@ -1,0 +1,21 @@
+skill_id,skill_name,category
+1,SQL,Technical
+2,Excel,Technical
+3,Power BI,Technical
+4,Python,Technical
+5,Statistics,Technical
+6,Data Visualization,Technical
+7,Tableau,Technical
+8,Machine Learning,Technical
+9,Financial Modeling,Technical
+10,Market Research,Business
+11,Google Analytics,Technical
+12,SEO and Digital Marketing,Business
+13,Business Process Analysis,Business
+14,Requirements Gathering,Business
+15,Project Management,Business
+16,Communication,Soft Skill
+17,Presentation,Soft Skill
+18,Problem Solving,Soft Skill
+19,Critical Thinking,Soft Skill
+20,Storytelling with Data,Soft Skill
