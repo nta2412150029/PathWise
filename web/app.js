@@ -127,17 +127,22 @@ function renderError(container, message) {
     </div>`;
 }
 
-/** Progress ring: set value 0-100 and update inner text. */
+/** Progress ring: set value 0-100 and update inner text.
+ *  Uses --progress (registered @property) for smooth conic-gradient animation.
+ *  Falls back to direct setProperty for browsers without attr() support.
+ */
 function updateFitRing(ring, content, value) {
-  // Sync CSS custom property (for @property animated ring)
-  ring.setAttribute('value', value);
+  const rounded = Math.round(value);
 
-  // Fallback: sync --fit-value for browsers without attr() support
-  if (!CSS.supports('width: attr(value type(<number>))')) {
-    ring.style.setProperty('--fit-value', value);
-  }
+  // Always keep the <progress> value attribute as semantic source of truth
+  ring.setAttribute('value', rounded);
 
-  if (content) content.textContent = `${Math.round(value)}%`;
+  // Directly drive the conic-gradient via the registered --progress property.
+  // For browsers that support attr() in CSS (Chrome 133+, Edge 133+, FF 155+),
+  // this is also handled by CSS; we set it here as the universal fallback.
+  ring.style.setProperty('--progress', rounded);
+
+  if (content) content.textContent = `${rounded}%`;
 }
 
 /** Returns HTML for a level bar given current and max (5). */
@@ -668,7 +673,7 @@ function renderRoadmapPage(container, data) {
           <div class="roadmap-step__scores">
             <div class="score-item">
               <div class="score-item__label">Priority Score</div>
-              <div class="score-item__val" style="color:var(--color-primary-light)">${step.priority_score}</div>
+              <div class="score-item__val" style="color:var(--color-accent)">${step.priority_score}</div>
             </div>
             <div class="score-item">
               <div class="score-item__label">Gap Score</div>
@@ -691,11 +696,11 @@ function renderRoadmapPage(container, data) {
   }).join('');
 
   container.innerHTML = `
-    <div class="card mb-6" style="border-color:var(--color-primary-dim)">
-      <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--color-text-subtle);margin-bottom:var(--space-2)">
+    <div class="card mb-6" style="outline:2px solid var(--color-accent-border);outline-offset:0">
+      <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--color-text-dim);margin-bottom:var(--space-2)">
         Target Career
       </div>
-      <div style="font-size:1.15rem;font-weight:600;color:var(--color-text)">${data.career_name}</div>
+      <div style="font-family:var(--font-serif);font-size:1.2rem;font-weight:600;color:var(--color-text)">${data.career_name}</div>
       <div class="text-muted mt-2" style="font-size:0.85rem">
         ${steps.length} skill${steps.length !== 1 ? 's' : ''} to learn, in prerequisite-safe order.
         Ties are broken by Priority Score.
