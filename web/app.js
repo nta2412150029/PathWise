@@ -1,4 +1,4 @@
-﻿/**
+/**
  * app.js — PathWise Frontend
  *
  * Architecture: page-function pattern.
@@ -189,7 +189,7 @@ async function initDashboardPage() {
           Select your target career to see your Career Fit score,<br>
           recommended next skill, and personalized learning roadmap.
         </p>
-        <a href="careers.html" class="btn btn--primary">Get Started → Choose a Career</a>
+        <a href="skills.html" class="btn btn--primary">GET STARTED → BUILD YOUR SKILLS</a>
       </div>`;
     contentContainer.innerHTML = '';
     return;
@@ -356,19 +356,12 @@ function renderSkillsEditor(container, skills) {
             aria-label="Level for ${s.skill_name}"
             data-skill-id="${s.skill_id}"
             data-original="${s.current_level}"
+            onchange="checkUnsavedChanges()"
           >
             ${[1,2,3,4,5].map(v =>
               `<option value="${v}" ${v === s.current_level ? 'selected' : ''}>${v} — ${LEVEL_LABELS[v]}</option>`
             ).join('')}
           </select>
-        </div>
-        <div>
-          <button
-            class="save-btn"
-            id="save-btn-${s.skill_id}"
-            data-skill-id="${s.skill_id}"
-            onclick="saveSkillLevel(${s.skill_id})"
-          >Save</button>
         </div>
       </div>`).join('');
 
@@ -379,41 +372,87 @@ function renderSkillsEditor(container, skills) {
       </div>`;
   }
 
+  html += `
+    <div class="global-save-section" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--an-surface-deep); display: flex; justify-content: space-between; align-items: center;">
+      <div id="save-status-msg" style="color: var(--an-muted-fg); font-style: italic; font-size: 0.9rem;">Skill profile saved</div>
+      <button class="btn btn--primary" id="global-save-btn" onclick="saveAllSkills()" disabled>Save Skill Profile</button>
+    </div>`;
+
   container.innerHTML = html;
 }
 
-async function saveSkillLevel(skillId) {
-  const select = document.getElementById(`select-${skillId}`);
-  const btn    = document.getElementById(`save-btn-${skillId}`);
-  if (!select || !btn) return;
+function checkUnsavedChanges() {
+  const selects = document.querySelectorAll('.level-select');
+  let hasChanges = false;
+  selects.forEach(sel => {
+    if (sel.value !== sel.dataset.original) {
+      hasChanges = true;
+    }
+  });
 
-  const level = parseInt(select.value, 10);
+  const btn = document.getElementById('global-save-btn');
+  const msg = document.getElementById('save-status-msg');
+  if (btn && msg) {
+    btn.disabled = !hasChanges;
+    if (hasChanges) {
+      msg.textContent = 'Unsaved changes';
+      msg.style.color = 'var(--an-ember)';
+    } else {
+      msg.textContent = 'Skill profile saved';
+      msg.style.color = 'var(--an-muted-fg)';
+    }
+  }
+}
+
+async function saveAllSkills() {
+  const selects = document.querySelectorAll('.level-select');
+  const updates = [];
+  selects.forEach(sel => {
+    if (sel.value !== sel.dataset.original) {
+      updates.push({
+        select: sel,
+        skill_id: parseInt(sel.dataset.skillId, 10),
+        current_level: parseInt(sel.value, 10)
+      });
+    }
+  });
+
+  if (updates.length === 0) return;
+
+  const btn = document.getElementById('global-save-btn');
+  const msg = document.getElementById('save-status-msg');
   btn.disabled = true;
   btn.textContent = 'Saving…';
-
+  
   try {
-    await fetch(`${API}/api/user/skills`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skill_id: skillId, current_level: level }),
-    }).then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
+    // The backend API expects one update at a time
+    await Promise.all(updates.map(update => 
+      fetch(`${API}/api/user/skills`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skill_id: update.skill_id, current_level: update.current_level }),
+      }).then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+    ));
+
+    updates.forEach(update => {
+      update.select.dataset.original = update.current_level;
     });
 
-    select.dataset.original = level;
-    btn.textContent = 'Saved ✓';
-    setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false; }, 1500);
-    showToast('Skill level updated', 'success');
+    btn.textContent = 'Save Skill Profile';
+    checkUnsavedChanges();
+    showToast('Skill profile updated successfully', 'success');
   } catch (err) {
-    btn.textContent = 'Error';
-    setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false; }, 2000);
+    btn.textContent = 'Save Skill Profile';
+    btn.disabled = false;
     showToast(`Save failed: ${err.message}`, 'error');
   }
 }
 
-// Make saveSkillLevel available globally (called from onclick)
-window.saveSkillLevel = saveSkillLevel;
+window.saveAllSkills = saveAllSkills;
+window.checkUnsavedChanges = checkUnsavedChanges;
 
 /* ============================================================
    Page: Career Explorer (careers.html)
@@ -732,5 +771,291 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('careers-content'))   initCareersPage();
   if (document.getElementById('gap-content'))       initGapPage();
   if (document.getElementById('roadmap-content'))   initRoadmapPage();
+  
+  initOnboarding();
+  initHelp();
 });
 
+/* ============================================================
+   Onboarding and Contextual Help
+   ============================================================ */
+
+const ONBOARDING_KEY = 'pathwise_onboarding_completed';
+
+const ONBOARDING_STEPS = [
+  {
+    isWelcome: true,
+    eyebrow: 'WELCOME TO PATHWISE',
+    title: 'Find your next step.',
+    content: `<p style="margin-top:0">PathWise helps you understand where you are now, where you want to go, and which skills to learn next.</p>
+              <div class="welcome-path">
+                <span class="step-num">01</span> &rarr; 
+                <span class="step-num">02</span> &rarr; 
+                <span class="step-num">03</span> &rarr; 
+                <span class="step-num">04</span> &rarr; 
+                <span class="step-num">05</span>
+              </div>`
+  },
+  {
+    title: 'My Skills',
+    subtitle: 'Step 1 of 5',
+    content: 'Tell PathWise where you are now. Rate your current skill proficiency from 1 (Beginner) to 5 (Expert).'
+  },
+  {
+    title: 'Career Explorer',
+    subtitle: 'Step 2 of 5',
+    content: 'Choose where you want to go. Select a target career.'
+  },
+  {
+    title: 'Skill Gap',
+    subtitle: 'Step 3 of 5',
+    content: 'See what separates your current profile from the target career. PathWise compares your current skills with the career requirements.'
+  },
+  {
+    title: 'Recommendation',
+    subtitle: 'Step 4 of 5',
+    content: 'Find out what to learn next. The system uses your skill gap, priority score, and prerequisite logic to identify the next recommended skill.'
+  },
+  {
+    title: 'Learning Roadmap',
+    subtitle: 'Step 5 of 5',
+    content: 'See the path forward. Your roadmap organizes skills in a prerequisite-safe order.'
+  }
+];
+
+const HELP_CONTENT = {
+  'index.html': {
+    eyebrow: 'OVERVIEW',
+    title: 'What is this page?',
+    content: `<p style="margin-top:0">This page brings your career readiness into one view.</p>
+              <div class="help-mini-guide">
+                <div class="help-item">
+                  <strong>CAREER FIT</strong>
+                  <span>How closely your current profile matches the target career.</span>
+                </div>
+                <div class="help-item">
+                  <strong>SKILL GAPS</strong>
+                  <span>Where your current skill levels fall below requirements.</span>
+                </div>
+                <div class="help-item">
+                  <strong>NEXT SKILL</strong>
+                  <span>The skill PathWise currently prioritizes for you.</span>
+                </div>
+              </div>`
+  },
+  'skills.html': {
+    eyebrow: 'YOUR STARTING POINT',
+    title: 'What do I do here?',
+    content: `<p style="margin-top:0">Rate your current skill levels. These values are used by PathWise to calculate your gaps and recommendations.</p>
+              <div class="help-scale">
+                <div class="help-scale-item"><strong>1</strong><span>Beginner</span></div>
+                <div class="help-scale-item"><strong>2</strong><span>Basic</span></div>
+                <div class="help-scale-item"><strong>3</strong><span>Intermediate</span></div>
+                <div class="help-scale-item"><strong>4</strong><span>Advanced</span></div>
+                <div class="help-scale-item"><strong>5</strong><span>Expert</span></div>
+              </div>`
+  },
+  'careers.html': {
+    eyebrow: 'YOUR DESTINATION',
+    title: 'What do I do here?',
+    content: `<p style="margin-top:0">Select the career you want to work toward.</p>
+              <div class="help-flow">
+                <div class="help-flow-box">CURRENT PROFILE</div>
+                <div class="help-flow-arrow">&darr;</div>
+                <div class="help-flow-box help-flow-box--target">TARGET CAREER</div>
+              </div>`
+  },
+  'gap.html': {
+    eyebrow: 'UNDERSTAND YOUR GAP',
+    title: 'What does this mean?',
+    content: `<p style="margin-top:0">PathWise compares your current skill levels with the requirements of your selected career.</p>
+              <div class="help-mini-guide">
+                <div class="help-item"><strong>CURRENT LEVEL</strong><span>Your present proficiency.</span></div>
+                <div class="help-item"><strong>REQUIRED LEVEL</strong><span>The level expected for the target career.</span></div>
+                <div class="help-item"><strong>GAP</strong><span>The difference between current and required level.</span></div>
+                <div class="help-item"><strong>PRIORITY</strong><span>How strongly PathWise recommends developing the skill next.</span></div>
+              </div>
+              <div class="help-formula">
+                <div class="formula-col">CURRENT<br><strong>3</strong></div>
+                <div class="formula-col">REQUIRED<br><strong>5</strong></div>
+                <div class="formula-col formula-col--accent">GAP<br><strong>2 LEVELS</strong></div>
+              </div>
+              <p class="help-note">Skills with larger gaps are not automatically recommended first; Priority Score and prerequisite logic are also considered.</p>`
+  },
+  'roadmap.html': {
+    eyebrow: 'THE PATH FORWARD',
+    title: 'What is this?',
+    content: `<p style="margin-top:0">The roadmap organizes the skills you need to develop toward your selected career while respecting prerequisite relationships.</p>
+              <div class="help-flow">
+                <div class="help-flow-box">SKILL A</div>
+                <div class="help-flow-arrow">&darr;</div>
+                <div class="help-flow-box">SKILL B</div>
+                <div class="help-flow-arrow">&darr;</div>
+                <div class="help-flow-box help-flow-box--target">RECOMMENDED NEXT SKILL</div>
+                <div class="help-flow-arrow">&darr;</div>
+                <div class="help-flow-box help-flow-box--final">TARGET CAREER</div>
+              </div>`
+  }
+};
+HELP_CONTENT[''] = HELP_CONTENT['index.html'];
+
+function getCurrentPageName() {
+  const path = window.location.pathname;
+  let page = path.split('/').pop();
+  return page;
+}
+
+function initOnboarding() {
+  // Only show on first visit (or when localStorage is cleared)
+  if (localStorage.getItem(ONBOARDING_KEY)) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'onboarding-overlay onboarding-overlay--anim';
+  overlay.innerHTML = `
+    <div class="onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+      <div class="onboarding-modal__header">
+        <span class="onboarding-modal__eyebrow" id="ob-eyebrow" style="display:none"></span>
+        <h2 id="ob-title" class="onboarding-modal__title"></h2>
+        <span class="onboarding-modal__subtitle" id="ob-subtitle"></span>
+      </div>
+      <div class="onboarding-modal__content" id="ob-content"></div>
+      <div class="onboarding-modal__footer">
+        <button class="btn btn--ghost" id="ob-skip-btn">Skip</button>
+        <div style="flex:1"></div>
+        <button class="btn btn--outline" id="ob-back-btn" style="display:none">Back</button>
+        <button class="btn btn--primary" id="ob-next-btn">Next</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  let currentStep = 0;
+  const nextBtn = document.getElementById('ob-next-btn');
+
+  function renderStep() {
+    const step = ONBOARDING_STEPS[currentStep];
+    
+    if (step.isWelcome) {
+      document.getElementById('ob-eyebrow').textContent = step.eyebrow;
+      document.getElementById('ob-eyebrow').style.display = 'block';
+      document.getElementById('ob-subtitle').style.display = 'none';
+      document.querySelector('.onboarding-modal__header').classList.add('welcome-header');
+    } else {
+      document.getElementById('ob-eyebrow').style.display = 'none';
+      document.getElementById('ob-subtitle').textContent = step.subtitle;
+      document.getElementById('ob-subtitle').style.display = 'block';
+      document.querySelector('.onboarding-modal__header').classList.remove('welcome-header');
+    }
+
+    document.getElementById('ob-title').textContent = step.title;
+    document.getElementById('ob-content').innerHTML = step.content;
+
+    document.getElementById('ob-back-btn').style.display = currentStep === 0 ? 'none' : 'block';
+    
+    if (currentStep === 0) {
+      nextBtn.textContent = "Let's Begin →";
+    } else if (currentStep === ONBOARDING_STEPS.length - 1) {
+      nextBtn.textContent = 'Finish';
+    } else {
+      nextBtn.textContent = 'Next';
+    }
+    
+    // Manage focus for accessibility
+    nextBtn.focus();
+  }
+
+  function finish() {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    overlay.classList.add('onboarding-overlay--closing');
+    setTimeout(() => overlay.remove(), 250);
+  }
+
+  nextBtn.addEventListener('click', () => {
+    if (currentStep < ONBOARDING_STEPS.length - 1) {
+      currentStep++;
+      renderStep();
+    } else {
+      finish();
+    }
+  });
+
+  document.getElementById('ob-back-btn').addEventListener('click', () => {
+    if (currentStep > 0) {
+      currentStep--;
+      renderStep();
+    }
+  });
+
+  document.getElementById('ob-skip-btn').addEventListener('click', finish);
+
+  renderStep();
+}
+
+function initHelp() {
+  const page = getCurrentPageName();
+  const helpData = HELP_CONTENT[page];
+  if (!helpData) return;
+
+  const header = document.querySelector('.page-header');
+  if (!header) return;
+
+  const helpBtn = document.createElement('button');
+  helpBtn.className = 'help-btn';
+  helpBtn.setAttribute('aria-label', 'Help');
+  helpBtn.textContent = '?';
+  helpBtn.onclick = () => {
+    // If onboarding is open, ignore
+    if (document.querySelector('.onboarding-overlay')) return;
+    showHelpModal(helpData);
+  };
+  
+  header.style.position = 'relative';
+  header.style.paddingRight = '3rem';
+  helpBtn.style.position = 'absolute';
+  helpBtn.style.right = '0';
+  helpBtn.style.top = '0';
+  
+  header.appendChild(helpBtn);
+}
+
+function showHelpModal(helpData) {
+  const overlay = document.createElement('div');
+  overlay.className = 'onboarding-overlay onboarding-overlay--anim';
+  overlay.innerHTML = `
+    <div class="onboarding-modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="help-modal__header">
+        <span class="onboarding-modal__eyebrow">${helpData.eyebrow}</span>
+      </div>
+      <div class="onboarding-modal__header" style="border-bottom:none; margin-bottom: 0; padding-top: 0;">
+        <h2 id="help-title" class="onboarding-modal__title">${helpData.title}</h2>
+      </div>
+      <div class="onboarding-modal__content" style="margin-bottom: 0; padding-top: 0.5rem;">${helpData.content}</div>
+      <div class="onboarding-modal__footer" style="justify-content: space-between; border-top: none;">
+        <span class="help-modal__hint">Press ESC to dismiss</span>
+        <button class="btn btn--primary" id="help-close-btn">Close</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const closeBtn = document.getElementById('help-close-btn');
+  const removeModal = () => {
+    overlay.classList.add('onboarding-overlay--closing');
+    setTimeout(() => overlay.remove(), 250);
+  };
+  
+  closeBtn.addEventListener('click', removeModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) removeModal();
+  });
+  
+  closeBtn.focus();
+  
+  const handleEsc = (e) => {
+    if (e.key === 'Escape') {
+      removeModal();
+      document.removeEventListener('keydown', handleEsc);
+    }
+  };
+  document.addEventListener('keydown', handleEsc);
+}
