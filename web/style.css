@@ -2140,3 +2140,8 @@ table tbody tr,
   padding: 1.75rem 2.25rem !important;
   box-sizing: border-box;
 }
+
+/* Prevent roadmap editorial image from visually bleeding into the section below */
+.editorial-media--wide {
+  transform: translateY(-4px);
+}
