@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap" />
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..500,100;1,9..144,300,100&family=Jost:wght@300;400;500&display=swap" />
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -29,14 +29,8 @@
 
   <main class="main" id="main-content">
 
-    <!-- Asymmetric roadmap layout: cinematic image left, text right -->
+    <!-- Asymmetric roadmap layout: text left, cinematic image right -->
     <div class="editorial-split" style="--anim-delay: 0s">
-      <div class="editorial-split__image" aria-hidden="true">
-        <img src="assets/roadmap-banner.png" alt="Editorial lifestyle photograph — the path forward"
-          class="editorial-img editorial-img--cinematic" data-placeholder="true" />
-        <!-- Decorative vertical rule bleeding off the image -->
-        <div class="editorial-split__rule" aria-hidden="true"></div>
-      </div>
       <header class="page-header editorial-split__text">
         <p class="editorial-eyebrow">Your Path</p>
         <h1 class="page-header__title">Learning<br><em>Roadmap</em></h1>
@@ -45,6 +39,9 @@
           Ties are broken by Priority Score.
         </p>
       </header>
+      <div class="editorial-media editorial-media--wide" aria-hidden="true">
+        <img src="assets/roadmap-banner.png" alt="Editorial lifestyle photograph — the path forward" />
+      </div>
     </div>
 
     <section id="roadmap-content" aria-live="polite" aria-busy="true"></section>

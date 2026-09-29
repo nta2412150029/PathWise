@@ -1,4 +1,4 @@
-/**
+﻿/**
  * app.js — PathWise Frontend
  *
  * Architecture: page-function pattern.
@@ -174,38 +174,38 @@ function gapBadgeHTML(skill) {
    ============================================================ */
 
 async function initDashboardPage() {
-  const container = document.getElementById('dashboard-content');
-  if (!container) return;
+  const introContainer = document.getElementById('dashboard-intro');
+  const contentContainer = document.getElementById('dashboard-content');
+  if (!introContainer || !contentContainer) return;
 
   const careerId   = getSelectedCareerId();
   const careerName = getSelectedCareerName();
 
   if (!careerId) {
-    // Show prompt and a small API health check
-    container.innerHTML = `
+    introContainer.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state__icon">🎯</div>
-        <p class="empty-state__title">Welcome to PathWise</p>
+        <p class="empty-state__title" style="margin-top:0;">Welcome to PathWise</p>
         <p class="empty-state__desc">
           Select your target career to see your Career Fit score,<br>
           recommended next skill, and personalized learning roadmap.
         </p>
         <a href="careers.html" class="btn btn--primary">Get Started → Choose a Career</a>
       </div>`;
+    contentContainer.innerHTML = '';
     return;
   }
 
-  renderSpinner(container, 'Analysing your profile…');
+  renderSpinner(introContainer, 'Analysing your profile…');
 
   try {
     const data = await apiFetch(`/api/analysis?career_id=${careerId}`);
-    renderDashboard(container, data);
+    renderDashboard(introContainer, contentContainer, data);
   } catch (err) {
-    renderError(container, err.message);
+    renderError(introContainer, err.message);
   }
 }
 
-function renderDashboard(container, data) {
+function renderDashboard(introContainer, contentContainer, data) {
   const fit   = data.career_fit;
   const rec   = data.recommendation;
   const skills = data.skill_analysis;
@@ -214,9 +214,9 @@ function renderDashboard(container, data) {
   const metCount = skills.filter(s => s.gap === 0).length;
   const total    = skills.length;
 
-  container.innerHTML = `
+  introContainer.innerHTML = `
     <!-- Career Fit ring -->
-    <div class="fit-display" id="fit-display">
+    <div class="fit-display" id="fit-display" style="border-bottom: none; padding-bottom: 0;">
       <div class="fit-ring-wrapper">
         <progress class="fit-ring" id="fit-ring" value="0" max="100" aria-label="Career Fit ${Math.round(fit)}%"></progress>
         <div class="fit-ring-content" id="fit-ring-content">0%</div>
@@ -231,10 +231,11 @@ function renderDashboard(container, data) {
             : 'You meet all skill requirements!'}
         </div>
       </div>
-    </div>
+    </div>`;
 
+  contentContainer.innerHTML = `
     <!-- Stats -->
-    <div class="stat-grid">
+    <div class="stat-grid" style="margin-top: 0;">
       <div class="stat-card">
         <div class="stat-card__label">Career Fit</div>
         <div class="stat-card__value stat-card__value--primary">${Math.round(fit)}%</div>
@@ -253,12 +254,12 @@ function renderDashboard(container, data) {
     </div>
 
     ${rec ? renderRecCardHTML(rec) : `
-      <div class="card mb-4">
+      <div style="padding: var(--space-8) 0; border-bottom: 1px solid var(--color-border);">
         <p class="text-muted">🎉 All required skills are met. No further learning is needed for this career.</p>
       </div>`}
 
     <!-- Quick navigation -->
-    <div class="flex gap-3 mt-4">
+    <div class="flex gap-4" style="padding-top: var(--space-6);">
       <a href="gap.html" class="btn btn--outline">View Full Skill Gap →</a>
       <a href="roadmap.html" class="btn btn--ghost">See Learning Roadmap</a>
       <a href="careers.html" class="btn btn--ghost">Change Career</a>
@@ -439,37 +440,43 @@ function renderCareers(container, careers, userSkills) {
   const selectedId = getSelectedCareerId();
   const userMap    = Object.fromEntries(userSkills.map(s => [s.skill_id, s.current_level]));
 
-  const cards = careers.map(career => {
+  const rows = careers.map(career => {
     const isSelected = career.career_id === selectedId;
     const icon = CAREER_ICONS[career.career_name] || '💼';
 
     return `
       <div
-        class="card card--interactive ${isSelected ? 'card--selected' : ''}"
+        class="career-row ${isSelected ? 'career-row--selected' : ''}"
         id="career-card-${career.career_id}"
         onclick="selectCareer(${career.career_id}, '${career.career_name.replace(/'/g, "\\'")}')"
         role="button"
         tabindex="0"
         aria-pressed="${isSelected}"
       >
-        <div class="career-card__icon">${icon}</div>
-        <div class="career-card__name">${career.career_name}</div>
-        ${isSelected
-          ? '<div class="career-card__badge">✓ Selected</div>'
-          : '<div style="height:22px"></div>'}
-        <button
-          class="btn ${isSelected ? 'btn--selected' : 'btn--primary'}"
-          onclick="event.stopPropagation(); selectAndNavigate(${career.career_id}, '${career.career_name.replace(/'/g, "\\'")}')"
-        >
-          ${isSelected ? '✓ Current Target' : 'Select & Analyse →'}
-        </button>
+        <div class="career-row__info">
+          <div class="career-row__icon">${icon}</div>
+          <div class="career-row__name">${career.career_name}</div>
+        </div>
+        
+        <div class="career-row__status">
+          ${isSelected ? '<span class="badge badge--success">✓ Target</span>' : ''}
+        </div>
+        
+        <div class="career-row__action">
+          <button
+            class="btn ${isSelected ? 'btn--selected' : 'btn--outline'}"
+            onclick="event.stopPropagation(); selectAndNavigate(${career.career_id}, '${career.career_name.replace(/'/g, "\\'")}')"
+          >
+            ${isSelected ? 'Analyse Gap →' : 'Select'}
+          </button>
+        </div>
       </div>`;
   }).join('');
 
   container.innerHTML = `
-    <div class="career-grid" id="career-grid">${cards}</div>
+    <div class="career-list" id="career-grid">${rows}</div>
     <p class="text-muted mt-6" style="font-size:0.85rem">
-      Click a career card to set it as your target. Your skill gap analysis and roadmap will update automatically.
+      Click a career row to set it as your target. Your skill gap analysis and roadmap will update automatically.
     </p>`;
 }
 
@@ -726,3 +733,4 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('gap-content'))       initGapPage();
   if (document.getElementById('roadmap-content'))   initRoadmapPage();
 });
+
