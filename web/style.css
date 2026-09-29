@@ -1015,7 +1015,7 @@ tbody tr:first-child td {
 
 .level-select {
   width: 100%;
-  background: transparent;
+  background: var(--an-surface);
   border: none;
   border-bottom: 1px solid transparent;
   border-radius: 0;
